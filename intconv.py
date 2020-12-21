@@ -62,21 +62,23 @@ class IntConv:
         return IntConv([max(self.x[0], other.x[0]), min(self.x[1], other.x[1])])
 
     def conv_bound(self):
+        lb = self.x[0]
+        ub = self.x[1]
         if self.lin:
             self.x[0] = min(self.fa, self.fb)
             self.x[1] = max(self.fa, self.fb)
         elif self.conv and self.da < 0 and self.db > 0:
-            self.x[1] = max(self.fa, self.fb)
-            cb = (self.db * self.fa - self.da * self.fb + self.da * self.db * (self.b - self.a))/(self.db - self.da)
-            if cb > self.x[0]:
-                print("cb = ", cb, " > ", self.x[0])
-                self.x[0] = cb
+            ub = max(self.fa, self.fb)
+            lb = (self.db * self.fa - self.da * self.fb + self.da * self.db * (self.b - self.a))/(self.db - self.da)
         elif self.conc and (self.da > 0) and (self.db < 0):
-            self.x[0] = min(self.fa, self.fb)
-            cb = (self.db * self.fa - self.da * self.fb + self.da * self.db * (self.b - self.a))/(self.db - self.da)
-            if cb < self.x[1]:
-                print("cb = ", cb, " < ", self.x[1])
-                self.x[1] = cb
+            lb = min(self.fa, self.fb)
+            ub = (self.db * self.fa - self.da * self.fb + self.da * self.db * (self.b - self.a))/(self.db - self.da)
+        if lb > self.x[0]:
+            print("improved lb from ", self.x[0], " to ", lb)
+            self.x[0] = lb
+        if ub < self.x[1]:
+            print("improved ub from ", self.x[1], " to ", ub)
+            self.x[1] = ub
 
     def __getitem__(self, item):
         return self.x[item]
@@ -88,6 +90,18 @@ class IntConv:
         nIntConv = IntConv(self.x)
         nIntConv.x[0] = - self.x[1]
         nIntConv.x[1] = - self.x[0]
+        nIntConv.a = self.a
+        nIntConv.b = self.b
+        nIntConv.fa = - self.fa
+        nIntConv.fb = - self.fb
+        nIntConv.da = - self.da
+        nIntConv.db = - self.db
+        nIntConv.const = self.const
+        nIntConv.lin = self.lin
+        nIntConv.inc = self.dec
+        nIntConv.dec = self.inc
+        nIntConv.conv = self.conc
+        nIntConv.conc = self.conv
         return nIntConv
 
     def __add__(self, other):
@@ -154,36 +168,30 @@ class IntConv:
             if self.x[0] >= 0:
                 nIntConv.inc = self.inc
                 nIntConv.dec = self.dec
-            elif self.x[0] <= 0:
+            elif self.x[1] <= 0:
                 nIntConv.inc = self.dec
                 nIntConv.dec = self.inc
+            else:
+                nIntConv.inc = False
+                nIntConv.dec = False
         else:
             nIntConv.inc = self.inc
             nIntConv.dec = self.dec
 
+        nIntConv.conv = False
+        nIntConv.conc = False
         if other % 2 == 0:
             if self.x[0] >= 0 and self.conv:
                 nIntConv.conv = True
-                nIntConv.conc = False
             elif self.x[1] <= 0 and self.conc:
                 nIntConv.conv = True
-                nIntConv.conc = False
             elif self.lin:
                 nIntConv.conv = True
-                nIntConv.conc = False
-            else:
-                nIntConv.inc = False
-                nIntConv.dec = False
         else:
             if self.x[0] >= 0 and self.conv:
                 nIntConv.conv = True
-                nIntConv.conc = False
             elif self.x[1] <= 0 and self.conc:
-                nIntConv.conv = False
                 nIntConv.conc = True
-            else:
-                nIntConv.inc = False
-                nIntConv.dec = False
 
         if other == 0:
             nIntConv.x[0] = 1
@@ -373,7 +381,32 @@ def sin(x):
             a = -1
         else:
             a = min(y)
-        return IntConv([a, b])
+
+        nIntConv = IntConv([a, b])
+        nIntConv.a = x.a
+        nIntConv.b = x.b
+        nIntConv.fa = math.sin(x.fa)
+        nIntConv.fb = math.sin(x.fb)
+        nIntConv.da = math.cos(x.fa) * x.da
+        nIntConv.db = math.cos(x.fb) * x.db
+        nIntConv.const = x.const
+        nIntConv.lin = False
+        nIntConv.inc = False
+        nIntConv.dec = False
+        lpi = math.floor(x[0]/math.pi)
+        rpi = math.ceil(x[1]/math.pi)
+        nIntConv.conc = False
+        nIntConv.conv = False
+        print("lpi,rpi:", lpi, rpi)
+        if rpi == lpi + 1:
+            if lpi % 2 == 0:
+                if x.lin:
+                    nIntConv.conc = True
+            else:
+                if x.lin:
+                    nIntConv.conv = True
+        nIntConv.conv_bound()
+        return nIntConv
 
 
 def cos(x):
@@ -396,7 +429,24 @@ def cos(x):
 
 
 def exp(x):
-    return IntConv([math.exp(x[0]), math.exp(x[1])])
+    nIntConv = IntConv([math.exp(x[0]), math.exp(x[1])])
+    nIntConv.a = x.a
+    nIntConv.b = x.b
+    nIntConv.fa = math.exp(x.fa)
+    nIntConv.fb = math.exp(x.fb)
+    nIntConv.da = math.exp(x.fa) * x.da
+    nIntConv.db = math.exp(x.fb) * x.db
+    nIntConv.const = x.const
+    nIntConv.lin = False
+    if x.conv:
+        nIntConv.conv = True
+    else:
+        nIntConv.conv = False
+    nIntConv.conc = False
+    nIntConv.inc = x.inc
+    nIntConv.dec = x.dec
+    nIntConv.conv_bound()
+    return nIntConv
 
 
 def abs(x):
