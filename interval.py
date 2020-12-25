@@ -1,6 +1,5 @@
 import math
 
-
 class Interval:
 
     def __init__(self, x):
@@ -118,6 +117,17 @@ class Interval:
     def __rtruediv__(self, other):
         return self.__truediv__(other)
 
+    def __abs__(self):
+        a = self.x[0]
+        b = self.x[1]
+        if b <= 0:
+            a = -self.x[1]
+            b = -self.x[0]
+        elif a < 0 < b:
+            b = max(-a, b)
+            a = 0
+        nInt = Interval([a, b])
+        return nInt
 
 #     def __max__(self, other):
 #         ointerval = valueToInterval(other)
@@ -177,16 +187,6 @@ def exp(x):
     return Interval([math.exp(x[0]), math.exp(x[1])])
 
 
-def abs(x):
-    if x[1] < 0:
-        return Interval([-x[0], -x[1]])
-    elif x[0] < 0 and x[1] > 0:
-        if -x[0] > x[1]:
-            return Interval([x[1], -x[0]])
-        else:
-            return Interval([-x[0], x[1]])
-    else:
-        return Interval([x[0], x[1]])
 
 
 def log(x):
