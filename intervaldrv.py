@@ -1,12 +1,16 @@
 import math
 import sys
 import intcore as ic
+import utils as ut
 
 
 def not_supported(s):
     sys.exit(s + " is not supported!")
 
-
+options = {
+    'domon' : True,
+    'doconv' : True
+}
 
 class IntervalDrv:
 
@@ -71,39 +75,65 @@ class IntervalDrv:
     def update_bounds(self, lb, ub, s):
         rv = False
         if lb > self.x[0]:
-            print(s, ": improved lb from ", self.x[0], " to ", lb)
+            # print(s, ": improved lb from ", self.x[0], " to ", lb)
             rv = True
             self.x[0] = lb
         if ub < self.x[1]:
-            print(s, ": improved ub from ", self.x[1], " to ", ub)
+            # print(s, ": improved ub from ", self.x[1], " to ", ub)
             rv = True
             self.x[1] = ub
+        # if rv:
+        #     print(self)
         return rv
 
     def monoton_bound(self):
-        if self.is_mon():
-            lb  = min(self.fa, self.fb)
-            ub = max(self.fa, self.fb)
-            self.update_bounds(lb, ub, "monoton")
-            return True
-        else:
-            return False
+        if options['domon']:
+            if self.is_mon():
+                lb  = min(self.fa, self.fb)
+                ub = max(self.fa, self.fb)
+                self.update_bounds(lb, ub, "monoton")
 
     def conv_bound(self):
+        if not options['doconv']:
+            return False
         lb = self.x[0]
         ub = self.x[1]
-        if self.is_conv() and (self.da < 0) and (self.db > 0):
+        dlb = self.dx[0]
+        dub = self.dx[1]
+        s = 'nothing'
+        if self.is_conv():
+            s = 'convex'
+            dlb = self.da
+            dub = self.db
             ub = max(self.fa, self.fb)
-            lb = (self.db * self.fa - self.da * self.fb + self.da * self.db * (self.b - self.a)) / (self.db - self.da)
+            if self.da >= 0:
+                lb = self.fa
+            elif self.db <=0:
+                lb = self.fb
+            else:
+                lb = ut.pijav(self.a, self.b, self.fa, self.fb, self.da, self.db)
         elif self.is_conc() and (self.da > 0) and (self.db < 0):
+            s = 'concave'
+            dlb = self.db
+            dub = self.da
             lb = min(self.fa, self.fb)
-            ub = (self.db * self.fa - self.da * self.fb + self.da * self.db * (self.b - self.a)) / (self.db - self.da)
-        return self.update_bounds(lb, ub, "convexity")
+            if self.da <= 0:
+                ub = self.fa
+            elif self.db >= 0:
+                ub = self.fb
+            else:
+                ub = ut.pijav(self.a, self.b, self.fa, self.fb, self.da, self.db)
+        xn = ic.cap(self.x, [lb, ub])
+        self.x[0] = xn[0]
+        self.x[1] = xn[1]
+        dn = ic.cap(self.dx, [dlb, dub])
+        self.dx[0] = dn[0]
+        self.dx[1] = dn[1]
 
 
     def improve_bound(self):
-        if not self.monoton_bound():
-            self.conv_bound()
+        self.monoton_bound()
+        self.conv_bound()
 
 
     def __getitem__(self, item):
@@ -264,29 +294,30 @@ def sin(op):
     return ninterval
 
 
-def cos(x):
-    not_supported("cos")
-    if isinstance(x, int):
-        return math.cos(x)
-    elif isinstance(x, float):
-        return math.cos(x)
-    else:
-        y = [math.cos(x[0]), math.cos(x[1])]
-        pi2 = 2 * math.pi
-        if math.ceil(x[0] / pi2) <= math.floor(x[1] / pi2):
-            b = 1
-        else:
-            b = max(y)
-        if math.ceil((x[0] - math.pi) / pi2) <= math.floor((x[1] - math.pi) / pi2):
-            a = -1
-        else:
-            a = min(y)
-        return IntervalDrv([a, b])
+def cos(op):
+    ninterval = IntervalDrv(ic.cos(op.x))
+    ninterval.dx = ic.dcos(op.x, op.dx)
+    ninterval.ddx = ic.ddcos(op.x, op.dx, op.ddx)
+    ninterval.a = op.a
+    ninterval.b = op.b
+    ninterval.fa = math.cos(op.fa)
+    ninterval.fb = math.cos(op.fb)
+    ninterval.da = - math.sin(op.fa) * op.da
+    ninterval.db = - math.sin(op.fb) * op.db
+    return ninterval
 
 
-def exp(x):
-    not_supported("exp")
-    return IntervalDrv([math.exp(x[0]), math.exp(x[1])])
+def exp(op):
+    ninterval = IntervalDrv(ic.exp(op.x))
+    ninterval.dx = ic.dexp(op.x, op.dx)
+    ninterval.ddx = ic.ddexp(op.x, op.dx, op.ddx)
+    ninterval.a = op.a
+    ninterval.b = op.b
+    ninterval.fa = math.exp(op.fa)
+    ninterval.fb = math.exp(op.fb)
+    ninterval.da = math.exp(op.fa) * op.da
+    ninterval.db = math.exp(op.fb) * op.db
+    return ninterval
 
 
 

@@ -53,6 +53,8 @@ def cos(x):
         lb = min(y)
     return [lb, ub]
 
+def exp(x):
+    return [math.exp(x[0]), math.exp(x[1])]
 
 def dpow(n, x, dx):
     y = [0,0]
@@ -68,6 +70,9 @@ def dsin(x, dx):
 
 def dcos(x, dx):
     return neg(mul(sin(x), dx))
+
+def dexp(x, dx):
+    return mul(exp(x), dx)
 
 def ddpow(n, x, dx, ddx):
     y = [0,0]
@@ -87,8 +92,20 @@ def ddmul(x, y, dx, dy, ddx, ddy):
     return add(s1, add(s2, s3))
 
 def ddsin(x, dx, ddx):
-    return sub(mul(cos(x), ddx), neg(mul(sin(x), pow(2, dx))))
+    return sub(mul(cos(x), ddx), mul(sin(x), pow(2, dx)))
 
+def ddcos(x, dx, ddx):
+    return neg(add(mul(sin(x), ddx), mul(cos(x), pow(2, dx))))
 
-def ddcos(x, dx):
-    return neg(mul(sin(x), dx))
+def ddexp(x, dx, ddx):
+    return mul(exp(x), add(pow(2, dx), ddx))
+
+def mid(x):
+    return 0.5 * (x[0] + x[1])
+
+def cap(x, y):
+    return [max(x[0], y[0]), min(x[1], y[1])]
+
+def first_form(x, dx, c, fc):
+    return add(fc, mul(sub(x, c), dx))
+

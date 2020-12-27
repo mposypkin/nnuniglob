@@ -19,7 +19,7 @@ def bnb(problem, subs, maxi, f, fi, split):
             fr = fc
         frange = fi(s)
         # print("frange = ", frange)
-        if frange.x[0] < fr - eps:
+        if frange[0] < fr - eps:
             subs.extend(split(s))
         i = i + 1
         if i > maxi:
